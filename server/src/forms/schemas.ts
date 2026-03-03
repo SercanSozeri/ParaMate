@@ -13,36 +13,176 @@ export const isFormId = (value: string): value is FormId => {
 
 export const OCCURRENCE_REPORT_FORM: FormSchema = {
   formId: 'OCCURRENCE_REPORT',
+  id: 'occurrence_report',
   title: 'Occurrence Report',
+  sequentialQuestionFlow: true,
   sections: [
     {
-      title: 'Incident Details',
+      title: 'Incident Overview',
       fields: [
         {
           key: 'incidentDate',
           label: 'Incident Date',
-          type: 'date',
+          type: 'string',
           required: true,
         },
         {
           key: 'incidentTime',
           label: 'Incident Time',
-          type: 'time',
+          type: 'string',
           required: true,
         },
         {
-          key: 'location',
-          label: 'Location',
-          type: 'text',
-          required: true,
-          placeholder: 'Street address or description',
+          key: 'callNumber',
+          label: 'Call Number',
+          type: 'string',
+          required: false,
         },
         {
-          key: 'description',
+          key: 'occurrenceType',
+          label: 'Occurrence Type',
+          type: 'string',
+          required: true,
+        },
+        {
+          key: 'occurrenceReference',
+          label: 'Occurrence Reference',
+          type: 'string',
+          required: false,
+        },
+        {
+          key: 'briefDescription',
           label: 'Brief Description',
           type: 'textarea',
           required: true,
-          placeholder: 'Summarize what happened',
+        },
+      ],
+    },
+    {
+      title: 'Classification',
+      fields: [
+        {
+          key: 'classification',
+          label: 'Classification',
+          type: 'string',
+          required: true,
+        },
+        {
+          key: 'classificationDetails',
+          label: 'Classification Details',
+          type: 'textarea',
+          required: false,
+        },
+      ],
+    },
+    {
+      title: 'Service & Vehicle',
+      fields: [
+        {
+          key: 'service',
+          label: 'Service',
+          type: 'string',
+          required: true,
+        },
+        {
+          key: 'vehicleNumber',
+          label: 'Vehicle Number',
+          type: 'string',
+          required: true,
+        },
+        {
+          key: 'vehicleDescription',
+          label: 'Vehicle Description',
+          type: 'textarea',
+          required: false,
+        },
+      ],
+    },
+    {
+      title: 'Personnel',
+      fields: [
+        {
+          key: 'role',
+          label: 'Role',
+          type: 'string',
+          required: true,
+        },
+        {
+          key: 'roleDescription',
+          label: 'Role Description',
+          type: 'textarea',
+          required: false,
+        },
+        {
+          key: 'badgeNumber',
+          label: 'Badge Number',
+          type: 'string',
+          required: true,
+        },
+        {
+          key: 'otherServicesInvolved',
+          label: 'Other Services Involved',
+          type: 'array',
+          required: false,
+          options: ['fire', 'police'],
+        },
+      ],
+    },
+    {
+      title: 'Report Details',
+      fields: [
+        {
+          key: 'observationDetails',
+          label: 'Observation Details',
+          type: 'textarea',
+          required: true,
+        },
+        {
+          key: 'actionTaken',
+          label: 'Action Taken',
+          type: 'textarea',
+          required: true,
+        },
+        {
+          key: 'suggestedResolution',
+          label: 'Suggested Resolution',
+          type: 'textarea',
+          required: false,
+        },
+        {
+          key: 'managementNotes',
+          label: 'Management Notes',
+          type: 'textarea',
+          required: false,
+        },
+      ],
+    },
+    {
+      title: 'Submission Information',
+      fields: [
+        {
+          key: 'requestedBy',
+          label: 'Requested By',
+          type: 'string',
+          required: true,
+        },
+        {
+          key: 'requestedByDetails',
+          label: 'Requested By Details',
+          type: 'textarea',
+          required: false,
+        },
+        {
+          key: 'reportCreator',
+          label: 'Report Creator',
+          type: 'string',
+          required: true,
+        },
+        {
+          key: 'creatorDetails',
+          label: 'Creator Details',
+          type: 'textarea',
+          required: false,
         },
       ],
     },
@@ -51,42 +191,91 @@ export const OCCURRENCE_REPORT_FORM: FormSchema = {
 
 export const TEDDY_BEAR_FORM: FormSchema = {
   formId: 'TEDDY_BEAR',
-  title: 'Teddy Bear Intervention',
+  id: 'teddy_bear_tracking',
+  title: 'Teddy Bear Tracking',
+  sequentialQuestionFlow: true,
   sections: [
     {
-      title: 'Child & Context',
+      title: 'Date & Time',
       fields: [
         {
-          key: 'childAge',
-          label: 'Child Age',
-          type: 'number',
-          required: false,
-          placeholder: 'Age in years',
-        },
-        {
-          key: 'situation',
-          label: 'Situation',
-          type: 'select',
+          key: 'distributionDateTime',
+          label: 'Distribution Date & Time',
+          type: 'datetime',
           required: true,
-          options: [
-            'Trauma',
-            'Medical',
-            'Emotional support',
-            'Family crisis',
-          ],
+        },
+      ],
+    },
+    {
+      title: 'Primary Medic',
+      fields: [
+        {
+          key: 'primaryFirstName',
+          label: 'Primary Medic First Name',
+          type: 'string',
+          required: true,
         },
         {
-          key: 'bearGiven',
-          label: 'Bear Given',
-          type: 'checkbox',
+          key: 'primaryLastName',
+          label: 'Primary Medic Last Name',
+          type: 'string',
+          required: true,
+        },
+        {
+          key: 'primaryMedicNumber',
+          label: 'Primary Medic Number',
+          type: 'string',
+          required: true,
+        },
+      ],
+    },
+    {
+      title: 'Secondary Medic (Optional)',
+      fields: [
+        {
+          key: 'secondaryFirstName',
+          label: 'Secondary Medic First Name',
+          type: 'string',
           required: false,
         },
         {
-          key: 'notes',
-          label: 'Notes',
-          type: 'textarea',
+          key: 'secondaryLastName',
+          label: 'Secondary Medic Last Name',
+          type: 'string',
           required: false,
-          placeholder: 'Short note about the interaction',
+        },
+        {
+          key: 'secondaryMedicNumber',
+          label: 'Secondary Medic Number',
+          type: 'string',
+          required: false,
+        },
+      ],
+    },
+    {
+      title: 'Recipient',
+      fields: [
+        {
+          key: 'recipientAge',
+          label: 'Recipient Age',
+          type: 'number',
+          required: true,
+          validation: {
+            min: 0,
+            max: 120,
+          },
+        },
+        {
+          key: 'recipientGender',
+          label: 'Recipient Gender',
+          type: 'string',
+          required: true,
+        },
+        {
+          key: 'recipientType',
+          label: 'Recipient Type',
+          type: 'string',
+          required: true,
         },
       ],
     },
@@ -95,36 +284,36 @@ export const TEDDY_BEAR_FORM: FormSchema = {
 
 export const SHIFT_REPORT_FORM: FormSchema = {
   formId: 'SHIFT_REPORT',
+  id: 'shift_report',
   title: 'Shift Report',
+  conversationalMode: true,
   sections: [
     {
-      title: 'Shift Summary',
+      title: 'Shift Conversation Context',
       fields: [
         {
-          key: 'shiftDate',
-          label: 'Shift Date',
-          type: 'date',
-          required: true,
+          key: 'month',
+          label: 'Month',
+          type: 'string',
+          required: false,
+        },
+        {
+          key: 'week',
+          label: 'Week',
+          type: 'string',
+          required: false,
         },
         {
           key: 'shiftType',
           label: 'Shift Type',
-          type: 'select',
-          required: true,
-          options: ['Day', 'Evening', 'Night'],
-        },
-        {
-          key: 'callsAttended',
-          label: 'Number of Calls',
-          type: 'number',
+          type: 'string',
           required: false,
         },
         {
-          key: 'highlights',
-          label: 'Highlights / Concerns',
-          type: 'textarea',
+          key: 'date',
+          label: 'Date',
+          type: 'string',
           required: false,
-          placeholder: 'Anything notable from the shift',
         },
       ],
     },
@@ -133,7 +322,9 @@ export const SHIFT_REPORT_FORM: FormSchema = {
 
 export const STATUS_REPORT_FORM: FormSchema = {
   formId: 'STATUS_REPORT',
+  id: 'status_report',
   title: 'Status Report',
+  sequentialQuestionFlow: true,
   sections: [
     {
       title: 'Crew & Unit Status',
@@ -141,7 +332,7 @@ export const STATUS_REPORT_FORM: FormSchema = {
         {
           key: 'unitId',
           label: 'Unit ID',
-          type: 'text',
+          type: 'string',
           required: true,
         },
         {

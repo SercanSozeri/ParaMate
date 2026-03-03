@@ -63,8 +63,117 @@ const computeMissingRequiredFields = (
     if (typeof value === 'string' && value.trim() === '') {
       return true;
     }
+    if (Array.isArray(value) && value.length === 0) {
+      return true;
+    }
     return false;
   });
+};
+
+const buildFormatError = (label: string): string =>
+  `That format seems incorrect. Please provide a valid ${label}.`;
+
+const validateFieldValue = (
+  field: FormField,
+  value: unknown,
+): string | undefined => {
+  const label = field.label;
+  const key = field.key.toLowerCase();
+  const stringValue =
+    typeof value === 'string' ? value.trim() : String(value ?? '').trim();
+
+  // Empty values are handled by required-field logic; not a format error.
+  if (!stringValue) {
+    return undefined;
+  }
+
+  // Specific semantic validations based on field key.
+  if (key === 'incidentdate') {
+    const timestamp = Date.parse(stringValue);
+    if (Number.isNaN(timestamp)) {
+      return buildFormatError(label);
+    }
+  }
+
+  if (key === 'incidenttime') {
+    // Basic HH:MM 24h format validation.
+    const timeRegex = /^([01]?\d|2[0-3]):[0-5]\d$/;
+    if (!timeRegex.test(stringValue)) {
+      return buildFormatError(label);
+    }
+  }
+
+  if (key === 'badgenumber') {
+    const badgeRegex = /^[a-z0-9]+$/i;
+    if (!badgeRegex.test(stringValue)) {
+      return buildFormatError(label);
+    }
+  }
+
+  if (
+    key === 'medicnumber' ||
+    key === 'primarymedicnumber' ||
+    key === 'secondarymedicnumber'
+  ) {
+    const medicRegex = /^\d+$/;
+    if (!medicRegex.test(stringValue)) {
+      return buildFormatError(label);
+    }
+  }
+
+  if (key === 'recipientage') {
+    const num =
+      typeof value === 'number' ? value : Number.parseInt(stringValue, 10);
+    if (Number.isNaN(num) || num < 0 || num > 120) {
+      return buildFormatError(label);
+    }
+  }
+
+  // Generic email validation for fields containing 'email' in key.
+  if (key.includes('email')) {
+    const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(stringValue)) {
+      return buildFormatError(label);
+    }
+  }
+
+  // Generic phone validation for fields containing 'phone' or 'tel' in key.
+  if (key.includes('phone') || key.includes('tel')) {
+    const phoneRegex = /^[+\d][\d\s\-().]{5,}$/;
+    if (!phoneRegex.test(stringValue)) {
+      return buildFormatError(label);
+    }
+  }
+
+  // Schema-driven numeric range validation.
+  if (
+    typeof value === 'number' &&
+    field.validation &&
+    (field.validation.min !== undefined || field.validation.max !== undefined)
+  ) {
+    const { min, max } = field.validation;
+    if (min !== undefined && value < min) {
+      return buildFormatError(label);
+    }
+    if (max !== undefined && value > max) {
+      return buildFormatError(label);
+    }
+  }
+
+  // Schema-driven pattern validation.
+  if (field.validation?.pattern) {
+    try {
+      const re = new RegExp(field.validation.pattern);
+      if (!re.test(stringValue)) {
+        return buildFormatError(label);
+      }
+    } catch {
+      // Invalid regex in schema – ignore pattern.
+    }
+  }
+
+  return undefined;
 };
 
 export const startForm = (
@@ -125,6 +234,11 @@ export const updateDraft = (
           );
           continue;
         }
+        const error = validateFieldValue(field, numeric);
+        if (error) {
+          validationErrors.push(error);
+          continue;
+        }
         state.draft[key] = numeric;
         break;
       }
@@ -141,52 +255,47 @@ export const updateDraft = (
           );
           continue;
         }
+        {
+          const error = validateFieldValue(field, value);
+          if (error) {
+            validationErrors.push(error);
+            continue;
+          }
+        }
         state.draft[key] = value;
         break;
       }
-      case 'checkbox': {
-        if (typeof value === 'boolean') {
+      case 'array': {
+        if (Array.isArray(value)) {
           state.draft[key] = value;
         } else if (typeof value === 'string') {
-          const lowered = value.toLowerCase();
-          if (lowered === 'true' || lowered === '1') {
-            state.draft[key] = true;
-          } else if (lowered === 'false' || lowered === '0') {
-            state.draft[key] = false;
-          } else {
-            validationErrors.push(
-              `Field "${key}" must be a boolean-compatible value.`,
-            );
-            continue;
-          }
-        } else if (typeof value === 'number') {
-          if (value === 1) {
-            state.draft[key] = true;
-          } else if (value === 0) {
-            state.draft[key] = false;
-          } else {
-            validationErrors.push(
-              `Field "${key}" must be a boolean-compatible value.`,
-            );
-            continue;
-          }
+          const items = value
+            .split(',')
+            .map((v) => v.trim())
+            .filter((v) => v.length > 0);
+          state.draft[key] = items;
         } else {
           validationErrors.push(
-            `Field "${key}" must be a boolean-compatible value.`,
+            `Field "${key}" must be an array or a comma-separated string.`,
           );
           continue;
         }
         break;
       }
-      case 'text':
+      case 'string':
       case 'textarea':
-      case 'date':
-      case 'time': {
+      case 'datetime': {
         // For these simple types we accept any non-nullish value and coerce to string.
         if (value === undefined || value === null) {
           state.draft[key] = value;
         } else {
-          state.draft[key] = String(value);
+          const str = String(value);
+          const error = validateFieldValue(field, str);
+          if (error) {
+            validationErrors.push(error);
+            continue;
+          }
+          state.draft[key] = str;
         }
         break;
       }

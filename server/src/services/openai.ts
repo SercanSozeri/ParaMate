@@ -87,44 +87,53 @@ export async function getChatIntent(
   userMessage: string,
   context: ChatContext,
 ): Promise<ChatCompletionPayload> {
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not set');
   }
 
-  const baseUrl = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1';
-  const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+  console.log('API KEY LENGTH:', apiKey.length);
+  console.log('MODEL:', process.env.OPENAI_CHAT_MODEL);
+
+  const baseUrl = 'https://openrouter.ai/api/v1';
+  const url = `${baseUrl}/chat/completions`;
 
   const systemContent = buildSystemPrompt(context);
 
   const body = {
-    model: process.env.OPENAI_CHAT_MODEL ?? 'gpt-4o-mini',
+    model: process.env.OPENAI_CHAT_MODEL ?? 'openai/gpt-4o-mini',
     messages: [
       { role: 'system', content: systemContent },
       { role: 'user', content: userMessage },
     ],
-    response_format: { type: 'json_object' },
     temperature: 0.1,
+    max_tokens: 800,
   };
 
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
   });
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`OpenAI API error ${res.status}: ${text}`);
+    console.error('OpenRouter ERROR RESPONSE:', text);
+    throw new Error(`OpenRouter API error ${res.status}: ${text}`);
   }
 
-  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const data = await res.json() as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+
   const content = data.choices?.[0]?.message?.content;
-  if (typeof content !== 'string') {
-    throw new Error('No content in OpenAI response');
+
+  if (!content) {
+    throw new Error('No content in OpenRouter response');
   }
 
   return parsePayload(content);

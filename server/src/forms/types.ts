@@ -1,11 +1,10 @@
 export type FormFieldType =
-  | 'text'
-  | 'textarea'
+  | 'string'
   | 'number'
-  | 'date'
-  | 'time'
+  | 'datetime'
   | 'select'
-  | 'checkbox';
+  | 'textarea'
+  | 'array';
 
 export interface FormField {
   key: string;
@@ -14,6 +13,11 @@ export interface FormField {
   required: boolean;
   options?: string[];
   placeholder?: string;
+   validation?: {
+    pattern?: string;
+    min?: number;
+    max?: number;
+  };
 }
 
 export interface FormSection {
@@ -29,7 +33,10 @@ export type FormId =
 
 export interface FormSchema {
   formId: FormId;
+  id: string;
   title: string;
   sections: FormSection[];
+  sequentialQuestionFlow?: boolean;
+  conversationalMode?: boolean;
 }
 

@@ -91,10 +91,22 @@ export async function handleChat(
         };
       }
       const state = startForm(sessionId, formIdRaw);
+      const schema = FORM_SCHEMA_BY_ID[formIdRaw];
+
+      // Conversational forms (e.g. shift_report) do NOT use sequential required fields.
+      if (schema.conversationalMode) {
+        return {
+          assistantMessage: `Started "${schema.title}". You can ask things like "Do I have night shift this week?" or "How many shifts in March?".`,
+          updatedDraft: { ...state.draft },
+          missingRequiredFields: [...state.missingRequiredFields],
+          isComplete: false,
+        };
+      }
+
       const firstMissing = state.missingRequiredFields[0];
       const firstLabel = firstMissing ? getFieldLabel(formIdRaw, firstMissing) : undefined;
       return {
-        assistantMessage: `Started "${FORM_SCHEMA_BY_ID[formIdRaw].title}". Please provide: ${firstLabel ?? firstMissing}.`,
+        assistantMessage: `Started "${schema.title}". Please provide: ${firstLabel ?? firstMissing}.`,
         updatedDraft: { ...state.draft },
         missingRequiredFields: [...state.missingRequiredFields],
         isComplete: false,
@@ -116,7 +128,7 @@ export async function handleChat(
 
       if (result.validationErrors.length > 0) {
         return {
-          assistantMessage: `Please correct: ${result.validationErrors.join(' ')}`,
+          assistantMessage: result.validationErrors[0],
           updatedDraft: { ...result.draft },
           missingRequiredFields: [...result.missingRequiredFields],
           isComplete: result.missingRequiredFields.length === 0,
