@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/chat_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/submission_provider.dart';
 import '../services/api_client.dart';
@@ -67,6 +68,7 @@ class _SubmitScreenState extends ConsumerState<SubmitScreen> {
       );
 
       ref.read(submissionProvider.notifier).setLastSentPdf(pdfBase64);
+      ref.read(voiceSessionActiveProvider.notifier).state = false;
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/confirmation');
     } catch (e) {

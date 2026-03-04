@@ -124,3 +124,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
   return ChatNotifier();
 });
+
+/// When true, voice mode is in an active continuous session (auto-listen after TTS).
+/// Set false when user says cancel/stop session, taps End session, or form is submitted.
+final voiceSessionActiveProvider = StateProvider<bool>((ref) => false);

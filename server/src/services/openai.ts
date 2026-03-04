@@ -23,6 +23,8 @@ export interface ChatContext {
   formTitle?: string;
   nextMissingFieldKey?: string;
   nextMissingFieldLabel?: string;
+  /** Example value for the next required field (from schema). */
+  nextMissingFieldExample?: string;
   availableFormIds: string[];
 }
 
@@ -57,6 +59,9 @@ function buildSystemPrompt(context: ChatContext): string {
     lines.push('', `Current form: ${context.formId}${context.formTitle ? ` (${context.formTitle})` : ''}.`);
     if (context.nextMissingFieldKey) {
       lines.push(`Next required field: ${context.nextMissingFieldKey}${context.nextMissingFieldLabel ? ` (${context.nextMissingFieldLabel})` : ''}.`);
+      if (context.nextMissingFieldExample) {
+        lines.push(`Example value for this field: ${context.nextMissingFieldExample}. Extract the user's value in the correct format.`);
+      }
     }
   }
 

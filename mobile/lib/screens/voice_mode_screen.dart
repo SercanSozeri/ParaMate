@@ -44,7 +44,48 @@ class _VoiceModeScreenState extends ConsumerState<VoiceModeScreen> {
 
   Future<void> _initTts() async {
     await _tts.setLanguage(_ttsLanguageCode);
-    await _tts.setSpeechRate(0.9);
+    // Natural, calm, slightly slower (paramedic-grade, conversational)
+    await _tts.setSpeechRate(0.85);
+    await _tts.setPitch(1.0);
+    await _tts.setVolume(1.0);
+    await _selectBestVoice();
+    // When TTS finishes, auto-restart listening if voice session is still active.
+    _tts.setCompletionHandler(() {
+      if (mounted && ref.read(voiceSessionActiveProvider)) {
+        _startListening();
+      }
+    });
+  }
+
+  /// Prefer neural/enhanced voice for current locale for more natural sound.
+  Future<void> _selectBestVoice() async {
+    try {
+      final voices = await _tts.getVoices;
+      if (voices == null || voices.isEmpty) return;
+      final list = voices as List<dynamic>;
+      final localePrefix = _ttsLanguageCode.split('-').first.toLowerCase();
+      final localeVoices = list
+          .where((v) =>
+              (v is Map &&
+                  (v['locale'] ?? '').toString().toLowerCase().startsWith(localePrefix)))
+          .toList();
+      if (localeVoices.isEmpty) return;
+      // Prefer enhanced/neural/natural voice (English-focused; other locales use first match)
+      final enhanced = localeVoices.cast<Map>().where((v) {
+        final n = (v['name'] ?? '').toString().toLowerCase();
+        return n.contains('enhanced') ||
+            n.contains('neural') ||
+            n.contains('natural');
+      }).toList();
+      final chosen =
+          enhanced.isNotEmpty ? enhanced.first : localeVoices.first as Map;
+      final voiceMap = chosen.map<String, String>(
+        (k, v) => MapEntry(k is String ? k : k.toString(), (v ?? '').toString()),
+      );
+      await _tts.setVoice(voiceMap);
+    } catch (_) {
+      // Use platform default if voice selection fails
+    }
   }
 
   String get _sttLocaleId =>
@@ -62,17 +103,38 @@ class _VoiceModeScreenState extends ConsumerState<VoiceModeScreen> {
       _language = lang;
     });
     await _tts.setLanguage(_ttsLanguageCode);
+    await _selectBestVoice();
   }
 
   @override
   void dispose() {
+    ref.read(voiceSessionActiveProvider.notifier).state = false;
     _speech.stop();
     _tts.stop();
     super.dispose();
   }
 
+  void _endSession() {
+    ref.read(voiceSessionActiveProvider.notifier).state = false;
+    _speech.stop();
+    _tts.stop();
+    if (mounted) {
+      setState(() {
+        _isListening = false;
+        _isSpeaking = false;
+      });
+    }
+  }
+
+  Future<void> _startSession() async {
+    if (!_speechAvailable) return;
+    ref.read(voiceSessionActiveProvider.notifier).state = true;
+    await _startListening();
+  }
+
   Future<void> _startListening() async {
     if (!_speechAvailable || _isListening) return;
+    if (!ref.read(voiceSessionActiveProvider)) return;
     setState(() {
       _isListening = true;
     });
@@ -98,18 +160,16 @@ class _VoiceModeScreenState extends ConsumerState<VoiceModeScreen> {
     }
   }
 
-  Future<void> _stopListening() async {
-    await _speech.stop();
-    if (mounted) {
-      setState(() {
-        _isListening = false;
-      });
-    }
-  }
-
   Future<void> _handleUserUtterance(String text) async {
     final notifier = ref.read(chatProvider.notifier);
     final normalized = text.toLowerCase();
+
+    // End continuous session on cancel / stop session.
+    if (normalized.contains('cancel') || normalized.contains('stop session')) {
+      _endSession();
+      await _speak('Session ended.');
+      return;
+    }
 
     // Simple demo hotword detection – no background service.
     if (normalized.contains('hey paramate')) {
@@ -127,7 +187,19 @@ class _VoiceModeScreenState extends ConsumerState<VoiceModeScreen> {
         .firstOrNull;
     if (lastAssistant != null && lastAssistant.text.isNotEmpty) {
       await _speak(lastAssistant.text);
+    } else if (mounted && ref.read(voiceSessionActiveProvider)) {
+      // No reply to speak; restart listening to keep session going.
+      _startListening();
     }
+  }
+
+  /// Inserts slight pauses after sentence boundaries for calmer, more natural delivery.
+  static String _textWithSentencePauses(String text) {
+    if (text.trim().isEmpty) return text;
+    return text
+        .replaceAll(RegExp(r'\.\s+'), '. , ')
+        .replaceAll(RegExp(r'\?\s+'), '? , ')
+        .replaceAll(RegExp(r'!\s+'), '! , ');
   }
 
   Future<void> _speak(String text) async {
@@ -136,7 +208,8 @@ class _VoiceModeScreenState extends ConsumerState<VoiceModeScreen> {
       _isSpeaking = true;
     });
     await _tts.setLanguage(_ttsLanguageCode);
-    await _tts.speak(text);
+    final toSpeak = _textWithSentencePauses(text);
+    await _tts.speak(toSpeak);
     if (mounted) {
       setState(() {
         _isSpeaking = false;
@@ -147,6 +220,7 @@ class _VoiceModeScreenState extends ConsumerState<VoiceModeScreen> {
   @override
   Widget build(BuildContext context) {
     final chat = ref.watch(chatProvider);
+    final isVoiceSessionActive = ref.watch(voiceSessionActiveProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -224,18 +298,29 @@ class _VoiceModeScreenState extends ConsumerState<VoiceModeScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text('Language: $_languageLabel', textAlign: TextAlign.center),
+                if (isVoiceSessionActive)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Session active — say "cancel" or "stop session" to end',
+                      style: Theme.of(context).textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed: !_speechAvailable || chat.isLoading
                       ? null
-                      : (_isListening ? _stopListening : _startListening),
+                      : (isVoiceSessionActive ? _endSession : _startSession),
                   icon: Icon(
                     _isListening ? Icons.mic : Icons.mic_none,
                   ),
                   label: Text(
-                    _isListening
-                        ? 'Listening...'
-                        : 'Tap to speak ($_languageLabel)',
+                    isVoiceSessionActive
+                        ? (_isListening
+                            ? 'Listening...'
+                            : 'End session')
+                        : 'Start voice session ($_languageLabel)',
                   ),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),

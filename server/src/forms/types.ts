@@ -11,9 +11,11 @@ export interface FormField {
   label: string;
   type: FormFieldType;
   required: boolean;
+  /** Example value for voice/UI hints (e.g. "2026-03-03", "10452"). */
+  example?: string;
   options?: string[];
   placeholder?: string;
-   validation?: {
+  validation?: {
     pattern?: string;
     min?: number;
     max?: number;

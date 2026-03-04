@@ -70,8 +70,15 @@ const computeMissingRequiredFields = (
   });
 };
 
-const buildFormatError = (label: string): string =>
-  `That format seems incorrect. Please provide a valid ${label}.`;
+/**
+ * Conversational validation: polite, clear, supportive. No robotic phrasing.
+ */
+const buildVoiceValidationMessage = (
+  formatExplanation: string,
+  example: string,
+  _label: string,
+): string =>
+  `I'm sorry, ${formatExplanation} For example: ${example}. Could you repeat that please?`;
 
 const validateFieldValue = (
   field: FormField,
@@ -87,29 +94,43 @@ const validateFieldValue = (
     return undefined;
   }
 
-  // Specific semantic validations based on field key.
+  // Date: YYYY-MM-DD
   if (key === 'incidentdate') {
     const timestamp = Date.parse(stringValue);
     if (Number.isNaN(timestamp)) {
-      return buildFormatError(label);
+      return buildVoiceValidationMessage(
+        'I need the date in this format: YYYY-MM-DD.',
+        '2026-03-03',
+        label,
+      );
     }
   }
 
+  // Time: 24h HH:MM
   if (key === 'incidenttime') {
-    // Basic HH:MM 24h format validation.
     const timeRegex = /^([01]?\d|2[0-3]):[0-5]\d$/;
     if (!timeRegex.test(stringValue)) {
-      return buildFormatError(label);
+      return buildVoiceValidationMessage(
+        'I need the time in 24-hour format, like HH:MM.',
+        '14:30',
+        label,
+      );
     }
   }
 
+  // Badge: alphanumeric
   if (key === 'badgenumber') {
     const badgeRegex = /^[a-z0-9]+$/i;
     if (!badgeRegex.test(stringValue)) {
-      return buildFormatError(label);
+      return buildVoiceValidationMessage(
+        'I need a badge number with letters and numbers only.',
+        'B12345',
+        label,
+      );
     }
   }
 
+  // Medic ID: numeric only
   if (
     key === 'medicnumber' ||
     key === 'primarymedicnumber' ||
@@ -117,36 +138,52 @@ const validateFieldValue = (
   ) {
     const medicRegex = /^\d+$/;
     if (!medicRegex.test(stringValue)) {
-      return buildFormatError(label);
+      return buildVoiceValidationMessage(
+        'I need the medic ID as a number.',
+        '10452',
+        label,
+      );
     }
   }
 
+  // Age: number 0–120
   if (key === 'recipientage') {
     const num =
       typeof value === 'number' ? value : Number.parseInt(stringValue, 10);
     if (Number.isNaN(num) || num < 0 || num > 120) {
-      return buildFormatError(label);
+      return buildVoiceValidationMessage(
+        'I need age as a number between 0 and 120.',
+        '6',
+        label,
+      );
     }
   }
 
-  // Generic email validation for fields containing 'email' in key.
+  // Email
   if (key.includes('email')) {
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(stringValue)) {
-      return buildFormatError(label);
+      return buildVoiceValidationMessage(
+        'I need a valid email address.',
+        'name@example.com',
+        label,
+      );
     }
   }
 
-  // Generic phone validation for fields containing 'phone' or 'tel' in key.
+  // Phone
   if (key.includes('phone') || key.includes('tel')) {
     const phoneRegex = /^[+\d][\d\s\-().]{5,}$/;
     if (!phoneRegex.test(stringValue)) {
-      return buildFormatError(label);
+      return buildVoiceValidationMessage(
+        'I need a valid phone number.',
+        '555-123-4567',
+        label,
+      );
     }
   }
 
-  // Schema-driven numeric range validation.
+  // Schema-driven numeric range
   if (
     typeof value === 'number' &&
     field.validation &&
@@ -154,19 +191,27 @@ const validateFieldValue = (
   ) {
     const { min, max } = field.validation;
     if (min !== undefined && value < min) {
-      return buildFormatError(label);
+      return buildVoiceValidationMessage(
+        `I need a number no less than ${min}.`,
+        String(min),
+        label,
+      );
     }
     if (max !== undefined && value > max) {
-      return buildFormatError(label);
+      return buildVoiceValidationMessage(
+        `I need a number no greater than ${max}.`,
+        String(max),
+        label,
+      );
     }
   }
 
-  // Schema-driven pattern validation.
+  // Schema-driven pattern (generic)
   if (field.validation?.pattern) {
     try {
       const re = new RegExp(field.validation.pattern);
       if (!re.test(stringValue)) {
-        return buildFormatError(label);
+        return `I'm sorry, I need ${label.toLowerCase()} in the correct format. Could you repeat that please?`;
       }
     } catch {
       // Invalid regex in schema – ignore pattern.
@@ -230,7 +275,11 @@ export const updateDraft = (
         }
         if (numeric === undefined) {
           validationErrors.push(
-            `Field "${key}" must be a valid number.`,
+            buildVoiceValidationMessage(
+              `I need a valid number for ${field.label.toLowerCase()}.`,
+              '42',
+              field.label,
+            ),
           );
           continue;
         }
@@ -244,14 +293,18 @@ export const updateDraft = (
       }
       case 'select': {
         if (typeof value !== 'string') {
+          const opts = field.options ?? [];
+          const example = opts[0] ?? 'one of the options';
           validationErrors.push(
-            `Field "${key}" must be a string matching one of the allowed options.`,
+            `I'm sorry, I need one of: ${opts.join(', ')}. For example: ${example}. Could you repeat that please?`,
           );
           continue;
         }
         if (!field.options || !field.options.includes(value)) {
+          const opts = field.options ?? [];
+          const example = opts[0] ?? 'one of the options';
           validationErrors.push(
-            `Field "${key}" must be one of: ${field.options?.join(', ') ?? ''}`,
+            `I'm sorry, I need one of: ${opts.join(', ')}. For example: ${example}. Could you repeat that please?`,
           );
           continue;
         }
@@ -276,7 +329,7 @@ export const updateDraft = (
           state.draft[key] = items;
         } else {
           validationErrors.push(
-            `Field "${key}" must be an array or a comma-separated string.`,
+            `I'm sorry, I need a list of values or comma-separated. For example: item1, item2. Could you repeat that please?`,
           );
           continue;
         }
@@ -300,8 +353,9 @@ export const updateDraft = (
         break;
       }
       default: {
-        // Exhaustiveness guard – should never happen if FormFieldType is kept in sync.
-        validationErrors.push(`Unsupported field type for "${key}".`);
+        validationErrors.push(
+          `I'm sorry, I need a value in the correct format for ${field.label.toLowerCase()}. Could you repeat that please?`,
+        );
         break;
       }
     }
