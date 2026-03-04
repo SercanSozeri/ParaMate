@@ -50,6 +50,18 @@ class ChatState {
 class ChatNotifier extends StateNotifier<ChatState> {
   ChatNotifier() : super(const ChatState());
 
+  void addLocalExchange(String userText, String assistantText) {
+    final trimmedUser = userText.trim();
+    if (trimmedUser.isEmpty) return;
+    final userMessage = ChatMessage(isUser: true, text: trimmedUser);
+    final assistantMessage =
+        ChatMessage(isUser: false, text: assistantText.trim());
+    state = state.copyWith(
+      messages: [...state.messages, userMessage, assistantMessage],
+      error: null,
+    );
+  }
+
   Future<void> sendMessage(String text) async {
     final message = text.trim();
     if (message.isEmpty) return;
@@ -112,3 +124,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
   return ChatNotifier();
 });
+
+/// When true, voice mode is in an active continuous session (auto-listen after TTS).
+/// Set false when user says cancel/stop session, taps End session, or form is submitted.
+final voiceSessionActiveProvider = StateProvider<bool>((ref) => false);

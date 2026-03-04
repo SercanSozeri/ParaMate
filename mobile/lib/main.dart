@@ -5,6 +5,7 @@ import 'screens/confirmation_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/review_screen.dart';
 import 'screens/submit_screen.dart';
+import 'screens/voice_mode_screen.dart';
 
 void main() {
   runApp(
@@ -31,6 +32,7 @@ class ParaMateApp extends StatelessWidget {
         '/review': (context) => const ReviewScreen(),
         '/submit': (context) => const SubmitScreen(),
         '/confirmation': (context) => const ConfirmationScreen(),
+        '/voice': (context) => const VoiceModeScreen(),
       },
     );
   }
